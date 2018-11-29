@@ -1,0 +1,13 @@
+ img = cv2.imread(args.testimg)
+    print(type(img))
+    img2 = transforms.ToPILImage()(img).convert('L')
+    img2.show()
+    img_tensor = transform_train(img2)
+    img_tensor = img_tensor.unsqueeze(0)
+    #print(img_tensor.size())
+    #计算图片在每个类别上的分数
+    outputs = net(img_tensor)
+    # 得分最高的那个类
+    _, predicted = t.max(outputs.data, 1)
+    print('预测lable: ', ' '.join('%5s'\
+                                % classes[predicted[j]] for j in range(1)))
