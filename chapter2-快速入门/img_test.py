@@ -24,7 +24,7 @@ class lenet(nn.Module):
         super(lenet, self).__init__()
         self.conv1 = nn.Conv2d(1, 6, 5) 
         self.conv2 = nn.Conv2d(6, 16, 5)  
-        self.fc1   = nn.Linear(16*5*5, 100)  
+        self.fc1   = nn.Linear(16*4*4, 100)  
         self.fc2   = nn.Linear(100, 84)
         self.fc3   = nn.Linear(84, 10)
 
@@ -41,7 +41,7 @@ class lenet(nn.Module):
 
         x = F.max_pool2d(F.relu(x), 2) 
         preoout.append(x)
-        
+        preoout.append(x.size()[0])
         x = x.view(x.size()[0], -1) 
         preoout.append(x)
         
@@ -68,7 +68,7 @@ class lenet_mnist(nn.Module):
         nn.MaxPool2d(2)
         ) 
         self.fullyConnections = nn.Sequential(
-        nn.Linear(16 * 5 * 5, 120),
+        nn.Linear(16 * 4 * 4, 120),
         nn.Linear(120, 84),
         nn.Linear(84, 10)
         ) 
@@ -77,7 +77,7 @@ class lenet_mnist(nn.Module):
         preoout.append(x)
         x = self.cnn(x)
         preoout.append(x)
-        x = x.view(-1, 16 * 5 * 5)
+        x = x.view(-1, 16 * 4 * 4)
         preoout.append(x)
         x = self.fullyConnections(x)
         preoout.append(x)
@@ -86,7 +86,7 @@ class lenet_mnist(nn.Module):
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-parser.add_argument('--testimg', default='2.png', type=str, help='test image name')
+parser.add_argument('--testimg', default='./img_test/43.jpg', type=str, help='test image name')
 args = parser.parse_args()
 
 
@@ -106,7 +106,7 @@ if(data_set =='cifar10'):
     #net = googlenet.GoogLeNet()
 elif(data_set == 'mnist'):
     #net = lenet_mnist()
-    net = lenet()
+    net = lenet_mnist()
 
 net = net.to(device)
 
@@ -119,7 +119,7 @@ if args.resume:
     # Load checkpoint.
     print('==> Resuming from checkpoint..')
     assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-    checkpoint = t.load('./checkpoint/ckpt_mnist.t7')
+    checkpoint = t.load('./checkpoint/ckpt.t7')
     net.load_state_dict(checkpoint['net'])
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch']
@@ -129,10 +129,11 @@ if args.resume:
 print('==> Preparing data..')
 # 定义对数据的预处理
 transform_train = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomHorizontalFlip(),
+#     transforms.RandomCrop(32, padding=4),
+#     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    transforms.Normalize((0.4, 0.4, 0.4), (0.2, 0.2, 0.2)),
+#     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 
 classes = ('0', '1', '2', '3','4', '5', '6', '7', '8', '9')
@@ -162,11 +163,23 @@ if __name__ == '__main__':
     outputs = net(img_tensor)
     output = outputs[0]
     for data in outputs[1]:
-        print(data.size())
+        if isinstance(data,int):
+            print(data)
+            
+        else:
+            print(data.size())
     # 得分最高的那个类
     _, predicted = t.max(output.data, 1)
     print('预测lable: ', ' '.join('%5s'\
                                 % classes[predicted[j]] for j in range(1)))
+#     xx = t.randn(1,16,4,4)
+#     print(xx.size())
+#     xx_copy = xx
+#     print(xx.size()[0])
+#     cc = xx.view(xx.size()[0],-1).size()
+#     print(cc)
+#     dd = xx_copy.view(-1,16*4*4).size()
+#     print(dd)
 
    
 

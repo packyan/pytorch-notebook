@@ -122,6 +122,7 @@ def format_time(seconds):
     if f == '':
         f = '0ms'
     return f
+
 class Visualizer():
     """
     封装了visdom的基本操作，但是你仍然可以通过`self.vis.function`

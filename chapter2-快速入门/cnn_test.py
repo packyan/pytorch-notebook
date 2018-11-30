@@ -48,13 +48,15 @@ class lenet_mnist(nn.Module):
         nn.MaxPool2d(2)
         ) 
         self.fullyConnections = nn.Sequential(
-        nn.Linear(16 * 5 * 5, 120),
+        nn.Linear(16 * 4 * 4, 120),
         nn.Linear(120, 84),
         nn.Linear(84, 10)
         ) 
     def forward(self, x): 
         x = self.cnn(x)
-        x = x.view(-1, 16 * 5 * 5)
+        x = x.view(x.size()[0], -1) 
+        #x = x.view(-1,16 * 4 * 4)
+        #x = x.view(-1,16 * 4 * 4)
         x = self.fullyConnections(x) 
         return x
     
@@ -78,14 +80,17 @@ print("Use "+ str(device))
 if(data_set =='cifar10'):
     net = lenet()
     #net = googlenet.GoogLeNet()
+    print("use lenet")
 elif(data_set == 'mnist'):
     net = lenet_mnist()
+    print("use mnist lenet ")
     #net = lenet()
 
 
 net = net.to(device)
 #可视化环境
-vis = Visualizer("cnn_test")
+env = 'loss and test acc'
+vis = Visualizer(env)
     
 if device == 'cuda:0':
     net = t.nn.DataParallel(net)
@@ -128,7 +133,7 @@ if(data_set == 'cifar10'):
                         root='/home/pakcy/Downloads/pytorch-cifar-master/data', 
                         train=True, 
                         download=True,
-                        transform=transform)
+                        transform=transform_train)
 
     trainloader = t.utils.data.DataLoader(
                         trainset, 
@@ -141,11 +146,11 @@ if(data_set == 'cifar10'):
                         '/home/pakcy/Downloads/pytorch-cifar-master/data',
                         train=False, 
                         download=True, 
-                        transform=transform)
+                        transform=transform_test)
 
     testloader = t.utils.data.DataLoader(
                         testset,
-                        batch_size=4, 
+                        batch_size=100, 
                         shuffle=False,
                         num_workers=2)
 
@@ -159,7 +164,7 @@ elif(data_set == 'mnist'):
                         root='mnist/', 
                         train=True, 
                         download=True,
-                        transform=transform_train)
+                        transform=transform)
 
     trainloader = t.utils.data.DataLoader(
                         trainset, 
@@ -172,11 +177,11 @@ elif(data_set == 'mnist'):
                         root='mnist/',
                         train=False, 
                         download=True, 
-                        transform=transform_train)
+                        transform=transform)
 
     testloader = t.utils.data.DataLoader(
                         testset,
-                        batch_size=4, 
+                        batch_size=100, 
                         shuffle=False,
                         num_workers=2)
 
@@ -187,9 +192,15 @@ elif(data_set == 'mnist'):
 
 #train 
 t.set_num_threads(8)
+# train function
 def train(epoch):
     
-    running_loss = 0.0
+    train_loss = 0.0
+    correct = 0
+    total = 0
+    acc_epoch = 0.0
+    
+    net.train()
     for batch_idx, data in enumerate(trainloader, 0):
         
         # 输入数据
@@ -200,26 +211,31 @@ def train(epoch):
         # 在训练过程中
         # 先梯度清零(与net.zero_grad()效果一样)
         optimizer.zero_grad()
-        
         # forward + backward 
         outputs = net(inputs)
         # 计算损失
         loss = criterion(outputs, labels)
         #反向传播
         loss.backward()   
-        
         # 更新参数 
         optimizer.step()
-        
-        # 打印log信息
         # loss 是一个scalar,需要使用loss.item()来获取数值，不能使用loss[0]
-        running_loss += loss.item()
+        train_loss += loss.item()
         
-        progress_bar(batch_idx, len(trainloader), 'Loss: %.3f'
-        % (running_loss/(batch_idx+1)))
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
+        progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+            % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+#         progress_bar(batch_idx, len(trainloader), 'Loss: %.3f'
+#         % (running_loss/(batch_idx+1)))
         #可视化
-    vis.plot('running_loss', running_loss)
-    loss_pre_epoch.write(str(running_loss) + '\n')
+    acc_epoch = 100.*correct/total
+    vis.plot('Train Acc', acc_epoch)
+    vis.plot('Train Loss', train_loss)
+    loss_pre_epoch.write(str(train_loss) + '\n')
+    loss_pre_epoch.flush()
+    vis.save([env])
         #if batch_idx % 20 == 0: # 每2000个batch打印一下训练状态
             #print('[%d, %5d] loss: %.3f' \
              #     % (epoch+1, batch_idx+1, running_loss / 20))
@@ -262,7 +278,9 @@ def test2(epoch):
                 % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
     acc_current = 100.*correct/total
     vis.plot('Acc', acc_current)
+    vis.plot('Test loss', test_loss)
     acc_pre_epoch.write(str(acc_current) + '\n')
+    acc_pre_epoch.flush()
     # Save checkpoint.
     acc = 100.*correct/total
     if acc > best_acc:
@@ -286,14 +304,14 @@ if __name__ == '__main__':
     #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     #新建一个优化器，指定要调整的参数和学习率
     optimizer = optim.Adam(net.parameters(), lr=1e-3, betas=(0.9, 0.99))
-    
+    #optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
     #保存每个epoch loss和精度
     loss_pre_epoch =open('loss_pre_epoch.txt','w')
     acc_pre_epoch =open('acc_pre_epoch.txt','w')
     
     
     dataiter = iter(testloader)
-    train_epoch = 200
+    train_epoch = 50
     
     for epoch in range(start_epoch, start_epoch+train_epoch):
         train(epoch)
