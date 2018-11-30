@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch import optim
 import matplotlib.pyplot as plt
 from utils import progress_bar
+from utils import Visualizer
 import argparse
 import os
 
@@ -83,11 +84,13 @@ elif(data_set == 'mnist'):
 
 
 net = net.to(device)
-
+#可视化环境
+vis = Visualizer("cnn_test")
+    
 if device == 'cuda:0':
     net = t.nn.DataParallel(net)
     cudnn.benchmark = True
-    print("cuda is ready")
+    print("CUDA is ready")
 
 if args.resume:
     # Load checkpoint.
@@ -214,6 +217,9 @@ def train(epoch):
         
         progress_bar(batch_idx, len(trainloader), 'Loss: %.3f'
         % (running_loss/(batch_idx+1)))
+        #可视化
+    vis.plot('running_loss', running_loss)
+    loss_pre_epoch.write(str(running_loss) + '\n')
         #if batch_idx % 20 == 0: # 每2000个batch打印一下训练状态
             #print('[%d, %5d] loss: %.3f' \
              #     % (epoch+1, batch_idx+1, running_loss / 20))
@@ -234,6 +240,7 @@ def test(epoch):
             correct += (predicted == labels).sum()
         print('10000张测试集中的准确率为: %d %%' % (100 * correct / total))
         
+        
     
 def test2(epoch):
     global best_acc
@@ -250,10 +257,12 @@ def test2(epoch):
             _, predicted = outputs.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
-    #print('10000张测试集中的准确率为: %d %%' % (100 * correct / total))
+            #print('10000张测试集中的准确率为: %d %%' % (100 * correct / total))
             progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                 % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
-
+    acc_current = 100.*correct/total
+    vis.plot('Acc', acc_current)
+    acc_pre_epoch.write(str(acc_current) + '\n')
     # Save checkpoint.
     acc = 100.*correct/total
     if acc > best_acc:
@@ -278,6 +287,10 @@ if __name__ == '__main__':
     #新建一个优化器，指定要调整的参数和学习率
     optimizer = optim.Adam(net.parameters(), lr=1e-3, betas=(0.9, 0.99))
     
+    #保存每个epoch loss和精度
+    loss_pre_epoch =open('loss_pre_epoch.txt','w')
+    acc_pre_epoch =open('acc_pre_epoch.txt','w')
+    
     
     dataiter = iter(testloader)
     train_epoch = 200
@@ -288,18 +301,18 @@ if __name__ == '__main__':
         test2(epoch)
         print("Epoch : " + str(epoch+1))
         print('Best acc :' + str(best_acc))
-        images, labels = dataiter.next() # 一个batch返回4张图片
-        show(tv.utils.make_grid(images / 2 - 0.5)).resize((400,100)).show()
-        images, labels = images.to(device), labels.to(device)
-        print('实际的label: ', ' '.join(\
-                                     '%08s'%classes[labels[j]] for j in range(4)))
+#         images, labels = dataiter.next() # 一个batch返回4张图片
+#         show(tv.utils.make_grid(images / 2 - 0.5)).resize((400,100)).show()
+#         images, labels = images.to(device), labels.to(device)
+#         print('实际的label: ', ' '.join(\
+#                                      '%08s'%classes[labels[j]] for j in range(4)))
         
-        #计算图片在每个类别上的分数
-        outputs = net(images)
-        # 得分最高的那个类
-        _, predicted = t.max(outputs.data, 1)
-        print('预测lable: ', ' '.join('%5s'\
-                                    % classes[predicted[j]] for j in range(4)))
+#         #计算图片在每个类别上的分数
+#         outputs = net(images)
+#         # 得分最高的那个类
+#         _, predicted = t.max(outputs.data, 1)
+#         print('预测lable: ', ' '.join('%5s'\
+#                                     % classes[predicted[j]] for j in range(4)))
     print('Finished Training')
-    
-
+    loss_pre_epoch.close()
+    acc_pre_epoch.close()

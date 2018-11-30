@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch import optim
 import matplotlib.pyplot as plt
 from utils import progress_bar
+import utils
 import argparse
 import os
 from torchvision.datasets import ImageFolder
